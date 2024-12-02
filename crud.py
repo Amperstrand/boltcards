@@ -3,16 +3,27 @@ from datetime import datetime
 from typing import Optional
 
 from lnbits.db import Database
-from lnbits.helpers import urlsafe_short_hash
+#from lnbits.helpers import urlsafe_short_hash
+import shortuuid
+import hashlib
 
 from .models import Card, CreateCardData, Hit, Refund
 
 db = Database("ext_boltcards")
 
+def urlsafe_short_hash(input_str: Optional[str] = None) -> str:
+    if input_str is not None:
+        # Create a SHA-256 hash of the input string
+        hash_object = hashlib.sha256(input_str.encode('utf-8'))
+        hash_bytes = hash_object.digest()
+        # Encode the hash bytes into a short UUID
+        return shortuuid.encode(hash_bytes)
+    else:
+        return shortuuid.uuid()
 
 async def create_card(data: CreateCardData, wallet_id: str) -> Card:
-    card_id = urlsafe_short_hash().upper()
-    extenal_id = urlsafe_short_hash().lower()
+    card_id = urlsafe_short_hash(data.uid.upper() + 'card_id').upper()
+    extenal_id = urlsafe_short_hash(data.uid.upper() + 'external_id').lower()
 
     await db.execute(
         """
