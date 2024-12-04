@@ -1,3 +1,4 @@
+from lnbits.core.crud import get_wallet
 from loguru import logger
 
 import secrets
@@ -99,13 +100,28 @@ def derive_keys(uid: str, version: int, issuer_key: bytes) -> Dict[str, str]:
 
 
 async def create_card(data: CreateCardData, wallet_id: str) -> Card:
+#    admin_key = await get_user_admin_key(wallet_id)
+#    user_id = await get_current_user_id(wallet_id)
+
+    wallet_details = await  get_wallet(wallet_id)
+    logger.error(f"{wallet_details}")
+    logger.error(f"user {wallet_details.user}")
+    logger.error(f"adminkey {wallet_details.adminkey}")
+
     card_id = urlsafe_short_hash(data.uid.upper() + 'card_id').upper()
     external_id = urlsafe_short_hash(data.uid.upper() + 'external_id').lower()
 
-    UID="04a39493cc8680"#.upper()
-    ISSUER_KEY=bytes.fromhex("00000000000000000000000000000001")
+    #test
+    #UID="04a39493cc8680"#.upper()
+    #ISSUER_KEY=bytes.fromhex("00000000000000000000000000000001")
+
+    ISSUER_KEY=bytes.fromhex(wallet_details.user)
+
+
+
+
     VERSION=1
-    deterministic_keys=derive_keys(UID, VERSION, ISSUER_KEY)
+    deterministic_keys=derive_keys(data.uid.upper(), VERSION, ISSUER_KEY)
 
     logger.debug(f"random keys from LNbits:")
     logger.debug(data)
