@@ -1,3 +1,5 @@
+from loguru import logger
+
 import secrets
 from datetime import datetime
 from typing import Optional
@@ -6,6 +8,11 @@ from lnbits.db import Database
 #from lnbits.helpers import urlsafe_short_hash
 import uuid
 import shortuuid
+
+from typing import Dict
+
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.cmac import CMAC
 
 from .models import Card, CreateCardData, Hit, Refund
 
@@ -25,9 +32,81 @@ def urlsafe_short_hash(input_str: Optional[str] = None, namespace=BOLTCARDS_NAME
     else:
         return shortuuid.uuid()
 
+
+def prf(key: bytes, message_hex: str) -> bytes:
+    c = CMAC(algorithms.AES(key))
+    c.update(bytes.fromhex(message_hex))
+    return c.finalize()
+
+def deterministic_urlsafe_hash(secret_key: bytes, salt: str) -> str:
+    hmac_object = hmac.new(salt.encode(), secret_key, hashlib.sha256)
+    seed = hmac_object.hexdigest()
+    return shortuuid.uuid(name=seed)
+
+def encrypt_aes_ecb(key: bytes, data: bytes) -> bytes:
+    cipher = Cipher(algorithms.AES(key), modes.ECB())
+    encryptor = cipher.encryptor()
+    return encryptor.update(data) + encryptor.finalize()
+
+def calculate_cmac(key: bytes, data: bytes) -> bytes:
+    c = CMAC(algorithms.AES(key))
+    c.update(data)
+    return c.finalize()
+
+def decrypt_aes_ecb(key: bytes, data: bytes) -> bytes:
+    cipher = Cipher(algorithms.AES(key), modes.ECB())
+    decryptor = cipher.decryptor()
+    return decryptor.update(data) + decryptor.finalize()
+
+def derive_keys(uid: str, version: int, issuer_key: bytes) -> Dict[str, str]:
+    logger.debug(f"Deriving keys for UID: {uid}, Version: {version}")
+    if len(uid) != 14:
+        raise ValueError("UID must be exactly 7 bytes (14 hex characters).")
+    try:
+        uid_bytes = bytes.fromhex(uid)
+    except ValueError:
+        raise ValueError("UID must be a valid hex string.")
+    version_bytes = version.to_bytes(4, 'little')
+    HEX_PREFIX = '2d003f75'
+    card_key_input = HEX_PREFIX + uid + version_bytes.hex()
+    card_key = prf(issuer_key, card_key_input)
+    card_key_hex = card_key.hex()
+    k0 = prf(card_key, '2d003f76').hex()
+    k1 = prf(issuer_key, '2d003f77').hex()
+    k2 = prf(card_key, '2d003f78').hex()
+    k3 = prf(card_key, '2d003f79').hex()
+    k4 = prf(card_key, '2d003f7a').hex()
+    ID = prf(issuer_key, '2d003f7b' + uid)
+
+    card_id = urlsafe_short_hash(uid.upper() + 'card_id').upper()
+    external_id = urlsafe_short_hash(uid.upper() + 'external_id').lower()
+    card_name = uid.upper()
+    logger.debug(f"Derived Keys: K0={k0}, K1={k1}, K2={k2}, K3={k3}, K4={k4}")
+    logger.debug(f"Derived Identifiers: card_id={card_id}, external_id={external_id}, card_name={card_name}")
+    return {
+        'K0': k0,
+        'K1': k1,
+        'K2': k2,
+        'K3': k3,
+        'K4': k4,
+        'ID': ID,
+        'CardKey': card_key_hex,
+        'card_id': card_id, #used by lnbits for now
+        'external_id': external_id, #used by lnbits for now
+        'card_name': card_name, # defaults to just the UID
+        'uid_bytes': uid_bytes,
+    }
+
+
 async def create_card(data: CreateCardData, wallet_id: str) -> Card:
     card_id = urlsafe_short_hash(data.uid.upper() + 'card_id').upper()
     external_id = urlsafe_short_hash(data.uid.upper() + 'external_id').lower()
+
+    UID="04a39493cc8680"#.upper()
+    ISSUER_KEY=bytes.fromhex("00000000000000000000000000000001")
+    VERSION=1
+    keys=derive_keys(UID, VERSION, ISSUER_KEY)
+    logger.error(keys)
 
     await db.execute(
         """
@@ -54,7 +133,7 @@ async def create_card(data: CreateCardData, wallet_id: str) -> Card:
         {
             "id": card_id,
             "uid": data.uid.upper(),
-            "external_id": extenal_id,
+            "external_id": external_id,
             "wallet": wallet_id,
             "card_name": data.card_name,
             "counter": data.counter,
