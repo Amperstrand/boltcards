@@ -113,9 +113,9 @@ async def create_card(data: CreateCardData, wallet_id: str) -> Card:
 
     #test
     #UID="04a39493cc8680"#.upper()
-    #ISSUER_KEY=bytes.fromhex("00000000000000000000000000000001")
+    ISSUER_KEY=bytes.fromhex("00000000000000000000000000000001")
 
-    ISSUER_KEY=bytes.fromhex(wallet_details.user)
+    #ISSUER_KEY=bytes.fromhex(wallet_details.user)
 
 
 
