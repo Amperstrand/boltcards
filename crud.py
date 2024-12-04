@@ -77,7 +77,7 @@ def derive_keys(uid: str, version: int, issuer_key: bytes) -> Dict[str, str]:
     k2 = prf(card_key, '2d003f78').hex()
     k3 = prf(card_key, '2d003f79').hex()
     k4 = prf(card_key, '2d003f7a').hex()
-    ID = prf(issuer_key, '2d003f7b' + uid)
+    ID = prf(issuer_key, '2d003f7b' + uid).hex()
 
     card_id = urlsafe_short_hash(uid.upper() + 'card_id').upper()
     external_id = urlsafe_short_hash(uid.upper() + 'external_id').lower()
@@ -108,8 +108,6 @@ async def create_card(data: CreateCardData, wallet_id: str) -> Card:
     logger.error(f"user {wallet_details.user}")
     logger.error(f"adminkey {wallet_details.adminkey}")
 
-    card_id = urlsafe_short_hash(data.uid.upper() + 'card_id').upper()
-    external_id = urlsafe_short_hash(data.uid.upper() + 'external_id').lower()
 
     #test
     #UID="04a39493cc8680"#.upper()
@@ -128,6 +126,8 @@ async def create_card(data: CreateCardData, wallet_id: str) -> Card:
     logger.debug(f"keys derived with https://github.com/boltcard/boltcard/blob/main/docs/DETERMINISTIC.md:")
     logger.error(deterministic_keys)
 
+    card_id = deterministic_keys['ID'].encode('utf-8')
+    external_id = deterministic_keys['ID'].encode('utf-8')
     await db.execute(
         """
         INSERT INTO boltcards.cards (
