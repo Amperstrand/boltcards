@@ -81,14 +81,14 @@ def derive_keys(uid: str, version: int, issuer_key: bytes) -> Dict[str, str]:
     card_id = urlsafe_short_hash(uid.upper() + 'card_id').upper()
     external_id = urlsafe_short_hash(uid.upper() + 'external_id').lower()
     card_name = uid.upper()
-    logger.debug(f"Derived Keys: K0={k0}, K1={k1}, K2={k2}, K3={k3}, K4={k4}")
+    logger.debug(f"Derived Keys: k0={k0}, k1={k1}, k2={k2}, k3={k3}, k4={k4}")
     logger.debug(f"Derived Identifiers: card_id={card_id}, external_id={external_id}, card_name={card_name}")
     return {
-        'K0': k0,
-        'K1': k1,
-        'K2': k2,
-        'K3': k3,
-        'K4': k4,
+        'k0': k0,
+        'k1': k1,
+        'k2': k2,
+        'k3': k3,
+        'k4': k4,
         'ID': ID,
         'CardKey': card_key_hex,
         'card_id': card_id, #used by lnbits for now
@@ -105,8 +105,12 @@ async def create_card(data: CreateCardData, wallet_id: str) -> Card:
     UID="04a39493cc8680"#.upper()
     ISSUER_KEY=bytes.fromhex("00000000000000000000000000000001")
     VERSION=1
-    keys=derive_keys(UID, VERSION, ISSUER_KEY)
-    logger.error(keys)
+    deterministic_keys=derive_keys(UID, VERSION, ISSUER_KEY)
+
+    logger.debug(f"random keys from LNbits:")
+    logger.debug(data)
+    logger.debug(f"keys derived with https://github.com/boltcard/boltcard/blob/main/docs/DETERMINISTIC.md:")
+    logger.error(deterministic_keys)
 
     await db.execute(
         """
@@ -140,12 +144,13 @@ async def create_card(data: CreateCardData, wallet_id: str) -> Card:
             "tx_limit": data.tx_limit,
             "daily_limit": data.daily_limit,
             "enable": True,
-            "k0": data.k0,
-            "k1": data.k1,
-            "k2": data.k2,
+            "k0": deterministic_keys['k0'],
+            "k1": deterministic_keys['k1'],
+            "k2": deterministic_keys['k2'],
             "otp": secrets.token_hex(16),
         },
     )
+
     card = await get_card(card_id)
     assert card, "Newly created card couldn't be retrieved"
     return card
