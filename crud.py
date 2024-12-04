@@ -6,9 +6,9 @@ from datetime import datetime
 from typing import Optional
 
 from lnbits.db import Database
-#from lnbits.helpers import urlsafe_short_hash
-import uuid
-import shortuuid
+from lnbits.helpers import urlsafe_short_hash
+#import uuid
+#import shortuuid
 
 from typing import Dict
 
@@ -20,18 +20,18 @@ from .models import Card, CreateCardData, Hit, Refund
 db = Database("ext_boltcards")
 
 # Create a custom namespace for "boltcard://"
-BOLTCARDS_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "boltcard://")
-
-def urlsafe_short_hash(input_str: Optional[str] = None, namespace=BOLTCARDS_NAMESPACE) -> str:
-    """
-    Generate a deterministic, URL-safe, and compact hash from an input string,
-    using the custom Boltcards namespace.
-    """
-    if input_str is not None:
-        uuid5_obj = uuid.uuid5(namespace, input_str)
-        return shortuuid.encode(uuid5_obj)
-    else:
-        return shortuuid.uuid()
+#BOLTCARDS_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "boltcard://")
+#
+#def urlsafe_short_hash(input_str: Optional[str] = None, namespace=BOLTCARDS_NAMESPACE) -> str:
+#    """
+#    Generate a deterministic, URL-safe, and compact hash from an input string,
+#    using the custom Boltcards namespace.
+#    """
+#    if input_str is not None:
+#        uuid5_obj = uuid.uuid5(namespace, input_str)
+#        return shortuuid.encode(uuid5_obj)
+#    else:
+#        return shortuuid.uuid()
 
 
 def prf(key: bytes, message_hex: str) -> bytes:
@@ -79,8 +79,8 @@ def derive_keys(uid: str, version: int, issuer_key: bytes) -> Dict[str, str]:
     k4 = prf(card_key, '2d003f7a').hex()
     ID = prf(issuer_key, '2d003f7b' + uid).hex()
 
-    card_id = urlsafe_short_hash(uid.upper() + 'card_id').upper()
-    external_id = urlsafe_short_hash(uid.upper() + 'external_id').lower()
+#    card_id = urlsafe_short_hash(uid.upper() + 'card_id').upper()
+#    external_id = urlsafe_short_hash(uid.upper() + 'external_id').lower()
     card_name = uid.upper()
     logger.debug(f"Derived Keys: k0={k0}, k1={k1}, k2={k2}, k3={k3}, k4={k4}")
     logger.debug(f"Derived Identifiers: card_id={card_id}, external_id={external_id}, card_name={card_name}")
