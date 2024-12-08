@@ -1,3 +1,5 @@
+import hmac
+
 import secrets
 from datetime import datetime
 from typing import Optional
@@ -11,19 +13,21 @@ from .models import Card, CreateCardData, Hit, Refund
 
 db = Database("ext_boltcards")
 
+def deterministic_urlsafe_hash(secret_key: bytes, salt: str) -> str:
+    hmac_object = hmac.new(salt.encode(), secret_key, hashlib.sha256)
+    seed = hmac_object.hexdigest()
+    return shortuuid.uuid(name=seed)
+
 def urlsafe_short_hash(input_str: Optional[str] = None) -> str:
     if input_str is not None:
-        # Create a SHA-256 hash of the input string
-        hash_object = hashlib.sha256(input_str.encode('utf-8'))
-        hash_bytes = hash_object.digest()
-        # Encode the hash bytes into a short UUID
-        return shortuuid.encode(hash_bytes)
+        salt="not implemented yet"
+        return deterministic_urlsafe_hash(bytes.fromhex(input_str), salt)
     else:
         return shortuuid.uuid()
 
 async def create_card(data: CreateCardData, wallet_id: str) -> Card:
-    card_id = urlsafe_short_hash(data.uid.upper() + 'card_id').upper()
-    extenal_id = urlsafe_short_hash(data.uid.upper() + 'external_id').lower()
+    card_id = urlsafe_short_hash(data.uid.upper() + '00').upper()
+    extenal_id = urlsafe_short_hash(data.uid.upper() + '01').lower()
 
     await db.execute(
         """
